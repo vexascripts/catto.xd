@@ -1,1 +1,1 @@
-const API_URL = 'https://YOUR-WORKER.workers.dev/check';
+const API_URL = 'https://catto-xd-api.wsknauf.workers.dev/check';
