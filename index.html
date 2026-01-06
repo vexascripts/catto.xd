@@ -90,7 +90,11 @@
     </div>
 
     <script>
+        // IMPORTANT: Update this with your actual Cloudflare Worker URL
         const API_URL = 'https://catto-xd-api.wsknauf.workers.dev/check';
+        
+        // Set to true to see detailed API responses in console
+        const DEBUG_MODE = true;
         
         const blockers = [
             { id: 'goguardian', name: 'GoGuardian', color: '#00D4FF' },
@@ -193,7 +197,8 @@
                 document.getElementById('testing-status').textContent = `Testing ${i + 1}/${testSites.length}: ${site.name}`;
                 
                 try {
-                    console.log(`Testing ${site.url} with blockers:`, selectedBlockers);
+                    if (DEBUG_MODE) console.log(`\n=== Testing ${site.url} ===`);
+                    if (DEBUG_MODE) console.log('Selected blockers:', selectedBlockers);
                     
                     const response = await fetch(API_URL, {
                         method: 'POST',
@@ -211,13 +216,21 @@
                     }
 
                     const data = await response.json();
-                    console.log(`Result for ${site.url}:`, data);
+                    if (DEBUG_MODE) {
+                        console.log('API Response:', data);
+                        console.log(`Accessible: ${data.accessible}`);
+                        if (data.blockedBy) console.log('Blocked by:', data.blockedBy);
+                    }
 
+                    // STRICT CHECK: Only add if explicitly accessible
                     if (data.accessible === true) {
                         results.push({
                             ...site,
                             responseTime: data.responseTime
                         });
+                        if (DEBUG_MODE) console.log('✓ Site is UNBLOCKED - Added to results');
+                    } else {
+                        if (DEBUG_MODE) console.log('✗ Site is BLOCKED - Not adding to results');
                     }
                 } catch (error) {
                     console.error(`Error testing ${site.url}:`, error);
