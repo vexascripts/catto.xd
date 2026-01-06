@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catto.xd - Professional Blocker Bypass</title>
+    <title>Catto.xd - Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -33,7 +33,6 @@
     </style>
 </head>
 <body>
-    <!-- Loading Screen with Catto + XD Animation -->
     <div id="loading-screen" class="flex flex-col items-center justify-center h-screen">
         <div class="flex items-baseline gap-1">
             <h1 id="catto-text" class="text-7xl font-black glow">Catto</h1>
@@ -46,7 +45,6 @@
         </div>
     </div>
 
-    <!-- Select Screen -->
     <div id="select-screen" class="hidden min-h-screen p-8 flex items-center justify-center">
         <div class="max-w-4xl w-full">
             <h1 class="text-5xl font-black text-center glow mb-12">Catto.xd</h1>
@@ -65,7 +63,6 @@
         </div>
     </div>
 
-    <!-- Testing Screen -->
     <div id="testing-screen" class="hidden min-h-screen flex items-center justify-center">
         <div class="text-center">
             <svg class="w-16 h-16 text-white mx-auto mb-4 spinner" fill="none" viewBox="0 0 24 24">
@@ -77,7 +74,6 @@
         </div>
     </div>
 
-    <!-- Results Screen -->
     <div id="results-screen" class="hidden min-h-screen p-8">
         <div class="max-w-4xl mx-auto">
             <button id="back-btn" class="mb-6 text-white hover:text-gray-300 transition-colors">← Back</button>
@@ -92,12 +88,10 @@
         </div>
     </div>
 
-    <!-- Ad Overlay -->
     <div id="ad-overlay" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center z-50">
         <div class="card p-8 text-center max-w-2xl">
             <h2 class="text-2xl font-bold glow mb-4">Please watch this ad to support Catto.xd</h2>
             
-            <!-- Ad Container -->
             <div id="ad-container" class="bg-gray-900 rounded-lg p-4 mb-4 min-h-[250px] flex items-center justify-center">
                 <div id="ad-frame-wrapper" style="width: 100%; max-width: 728px;">
                     <iframe data-aa='2423345' 
@@ -106,7 +100,6 @@
                 </div>
             </div>
             
-            <!-- Countdown and Skip Button -->
             <div id="countdown-section">
                 <p class="text-gray-400 mb-3">Your link will open in <span id="countdown" class="text-white font-bold text-2xl">5</span> seconds</p>
                 <button id="skip-btn" class="hidden px-6 py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors">
@@ -145,13 +138,11 @@
         let selectedBlockers = [];
         let pendingUrl = '';
 
-        // Load custom sites from JSON if available
         fetch('./sites.json')
             .then(r => r.json())
             .then(data => { if (data.sites) testSites = data.sites; })
             .catch(() => console.log('Using default sites'));
 
-        // Intro Animation Sequence
         function playIntro() {
             const xdText = document.getElementById('xd-text');
             const loadingDots = document.getElementById('loading-dots');
@@ -345,10 +336,8 @@
             const countdownEl = document.getElementById('countdown');
             const skipBtn = document.getElementById('skip-btn');
             
-            // Show overlay
             overlay.classList.remove('hidden');
             
-            // Reset and start countdown
             let count = 5;
             countdownEl.textContent = count;
             skipBtn.classList.add('hidden');
@@ -359,7 +348,6 @@
                 
                 if (count === 0) {
                     clearInterval(interval);
-                    // Show skip button after countdown
                     skipBtn.classList.remove('hidden');
                     skipBtn.onclick = () => {
                         window.open(pendingUrl, '_blank');
