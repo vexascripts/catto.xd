@@ -24,7 +24,14 @@
           const [adCountdown, setAdCountdown] = useState(5);
           const [pendingUrl, setPendingUrl] = useState('');
           const [apiError, setApiError] = useState(false);
-          const [testSites, setTestSites] = useState([]);
+          const [testSites, setTestSites] = useState([
+            { name: 'Google Sites Proxy', url: 'https://sites.google.com/view/unblocker' },
+            { name: 'GitHub Pages', url: 'https://pages.github.com' },
+            { name: 'Netlify App', url: 'https://app.netlify.com' },
+            { name: 'Vercel App', url: 'https://vercel.com' },
+            { name: 'Glitch Project', url: 'https://glitch.com' },
+            { name: 'Replit Sites', url: 'https://replit.com' }
+          ]);
 
           const API_URL = 'https://catto-xd-api.wsknauf.workers.dev/check';
 
@@ -37,28 +44,32 @@
             { id: 'iboss', name: 'iBoss', color: '#4444FF' }
           ];
 
+          // Load sites from JSON file
           useEffect(() => {
             fetch('./sites.json')
               .then(response => response.json())
-              .then(data => setTestSites(data.sites))
+              .then(data => {
+                if (data && data.sites && data.sites.length > 0) {
+                  setTestSites(data.sites);
+                }
+              })
               .catch(error => {
-                console.error('Error loading sites:', error);
-                setTestSites([
-                  { name: 'Google Sites Proxy', url: 'https://sites.google.com/view/unblocker' },
-                  { name: 'GitHub Pages', url: 'https://pages.github.com' },
-                  { name: 'Netlify App', url: 'https://app.netlify.com' },
-                  { name: 'Vercel App', url: 'https://vercel.com' }
-                ]);
+                console.log('Using default sites (sites.json not found)');
               });
           }, []);
 
+          // Loading screen timer
           useEffect(() => {
             if (stage === 'loading') {
-              const timer = setTimeout(() => setStage('select'), 2500);
+              const timer = setTimeout(() => {
+                console.log('Transitioning from loading to select');
+                setStage('select');
+              }, 2500);
               return () => clearTimeout(timer);
             }
           }, [stage]);
 
+          // Ad countdown timer
           useEffect(() => {
             if (showAd && adCountdown > 0) {
               const timer = setTimeout(() => setAdCountdown(adCountdown - 1), 1000);
@@ -83,52 +94,63 @@
             setApiError(false);
             
             try {
-              if (API_URL.includes('YOUR-WORKER')) {
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                const mockResults = testSites.map(site => ({
-                  ...site,
-                  status: Math.random() > 0.5 ? 'unblocked' : 'blocked'
-                })).filter(r => r.status === 'unblocked');
-                
-                setResults(mockResults);
-                setApiError(true);
-              } else {
-                const checkPromises = testSites.map(async (site) => {
-                  try {
-                    const response = await fetch(API_URL, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ 
-                        url: site.url,
-                        blockers: selectedBlockers 
-                      })
-                    });
-                    
-                    const data = await response.json();
-                    return {
-                      ...site,
-                      status: data.accessible ? 'unblocked' : 'blocked',
-                      responseTime: data.responseTime
-                    };
-                  } catch (error) {
-                    console.error(`Error checking ${site.url}:`, error);
-                    return { ...site, status: 'error' };
-                  }
-                });
+              console.log('Starting API checks with URL:', API_URL);
+              console.log('Selected blockers:', selectedBlockers);
+              console.log('Testing sites:', testSites);
 
-                const allResults = await Promise.all(checkPromises);
-                const unblockedSites = allResults.filter(r => r.status === 'unblocked');
-                
-                setResults(unblockedSites);
+              const checkPromises = testSites.map(async (site) => {
+                try {
+                  console.log(`Checking ${site.url}...`);
+                  const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                      url: site.url,
+                      blockers: selectedBlockers 
+                    })
+                  });
+                  
+                  if (!response.ok) {
+                    console.error(`HTTP error for ${site.url}: ${response.status}`);
+                    throw new Error(`HTTP ${response.status}`);
+                  }
+
+                  const data = await response.json();
+                  console.log(`Result for ${site.url}:`, data);
+                  
+                  return {
+                    ...site,
+                    status: data.accessible ? 'unblocked' : 'blocked',
+                    responseTime: data.responseTime,
+                    blockInfo: data.blockedBy || []
+                  };
+                } catch (error) {
+                  console.error(`Error checking ${site.url}:`, error);
+                  return { ...site, status: 'error', error: error.message };
+                }
+              });
+
+              const allResults = await Promise.all(checkPromises);
+              console.log('All results:', allResults);
+              
+              const unblockedSites = allResults.filter(r => r.status === 'unblocked');
+              console.log('Unblocked sites:', unblockedSites);
+              
+              // Check if API actually worked
+              const allErrors = allResults.every(r => r.status === 'error');
+              if (allErrors) {
+                console.error('All API calls failed - API may not be working');
+                setApiError(true);
               }
+              
+              setResults(unblockedSites);
             } catch (error) {
-              console.error('Testing error:', error);
+              console.error('Critical testing error:', error);
               setApiError(true);
-              const mockResults = testSites.slice(0, 3).map(site => ({
-                ...site,
-                status: 'unblocked'
-              }));
-              setResults(mockResults);
+              setResults([]);
             }
             
             setTesting(false);
@@ -165,206 +187,204 @@
             </svg>
           );
 
-          const LoadingScreen = () => (
-            <div className="flex flex-col items-center justify-center h-screen bg-black">
-              <div className="relative mb-8">
-                <div className="absolute inset-0 bg-white blur-3xl opacity-20 animate-pulse"></div>
-                <div className="relative text-8xl font-bold text-white animate-bounce" 
-                     style={{ textShadow: '0 0 40px rgba(255,255,255,0.8), 0 0 80px rgba(255,255,255,0.4)' }}>
-                  😺
-                </div>
-              </div>
-              <h1 className="text-6xl font-black text-white mb-4 tracking-wider"
-                  style={{ textShadow: '0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.4)' }}>
-                Catto.xd
-              </h1>
-              <div className="flex gap-2 mt-8">
-                {[0, 1, 2].map(i => (
-                  <div key={i} 
-                       className="w-3 h-3 rounded-full bg-white animate-pulse"
-                       style={{ 
-                         animationDelay: `${i * 0.2}s`,
-                         boxShadow: '0 0 10px rgba(255,255,255,0.8)'
-                       }}></div>
-                ))}
-              </div>
-            </div>
-          );
+          console.log('Current stage:', stage);
 
-          const SelectScreen = () => (
-            <div className="min-h-screen bg-black p-8">
-              <div className="max-w-4xl mx-auto">
-                <h1 className="text-5xl font-black text-white mb-2 text-center"
-                    style={{ textShadow: '0 0 20px rgba(255,255,255,0.8)' }}>
-                  Catto.xd
-                </h1>
-                <p className="text-gray-400 text-center mb-12">Professional Blocker Bypass</p>
-                
-                <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800"
-                     style={{ boxShadow: '0 0 40px rgba(255,255,255,0.05)' }}>
-                  <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-                    <ShieldIcon />
-                    Select Your Blocker(s)
-                  </h2>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-                    {blockers.map(blocker => (
+          return (
+            <div style={{ minHeight: '100vh', background: '#000' }}>
+              {stage === 'loading' && (
+                <div className="flex flex-col items-center justify-center h-screen bg-black">
+                  <div className="relative mb-8">
+                    <div className="absolute inset-0 bg-white blur-3xl opacity-20 animate-pulse"></div>
+                    <div className="relative text-8xl font-bold text-white animate-bounce" 
+                         style={{ textShadow: '0 0 40px rgba(255,255,255,0.8), 0 0 80px rgba(255,255,255,0.4)' }}>
+                      😺
+                    </div>
+                  </div>
+                  <h1 className="text-6xl font-black text-white mb-4 tracking-wider"
+                      style={{ textShadow: '0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.4)' }}>
+                    Catto.xd
+                  </h1>
+                  <div className="flex gap-2 mt-8">
+                    {[0, 1, 2].map(i => (
+                      <div key={i} 
+                           className="w-3 h-3 rounded-full bg-white animate-pulse"
+                           style={{ 
+                             animationDelay: `${i * 0.2}s`,
+                             boxShadow: '0 0 10px rgba(255,255,255,0.8)'
+                           }}></div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {stage === 'select' && (
+                <div className="min-h-screen bg-black p-8">
+                  <div className="max-w-4xl mx-auto">
+                    <h1 className="text-5xl font-black text-white mb-2 text-center"
+                        style={{ textShadow: '0 0 20px rgba(255,255,255,0.8)' }}>
+                      Catto.xd
+                    </h1>
+                    <p className="text-gray-400 text-center mb-12">Professional Blocker Bypass</p>
+                    
+                    <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800"
+                         style={{ boxShadow: '0 0 40px rgba(255,255,255,0.05)' }}>
+                      <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+                        <ShieldIcon />
+                        Select Your Blocker(s)
+                      </h2>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                        {blockers.map(blocker => (
+                          <button
+                            key={blocker.id}
+                            onClick={() => toggleBlocker(blocker.id)}
+                            className={`p-6 rounded-xl border-2 transition-all duration-300 ${
+                              selectedBlockers.includes(blocker.id)
+                                ? 'bg-gray-800 scale-105'
+                                : 'bg-gray-900 hover:bg-gray-800'
+                            }`}
+                            style={{
+                              borderColor: selectedBlockers.includes(blocker.id) ? blocker.color : '#374151',
+                              boxShadow: selectedBlockers.includes(blocker.id) 
+                                ? `0 0 30px ${blocker.color}40` 
+                                : 'none'
+                            }}
+                          >
+                            <div className="text-2xl font-bold text-white mb-2"
+                                 style={{ 
+                                   color: selectedBlockers.includes(blocker.id) ? blocker.color : 'white',
+                                   textShadow: selectedBlockers.includes(blocker.id) 
+                                     ? `0 0 10px ${blocker.color}` 
+                                     : 'none'
+                                 }}>
+                              {blocker.name}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      
                       <button
-                        key={blocker.id}
-                        onClick={() => toggleBlocker(blocker.id)}
-                        className={`p-6 rounded-xl border-2 transition-all duration-300 ${
-                          selectedBlockers.includes(blocker.id)
-                            ? 'bg-gray-800 scale-105'
-                            : 'bg-gray-900 hover:bg-gray-800'
-                        }`}
+                        onClick={testLinks}
+                        disabled={selectedBlockers.length === 0}
+                        className="w-full py-4 rounded-xl font-bold text-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{
-                          borderColor: selectedBlockers.includes(blocker.id) ? blocker.color : '#374151',
-                          boxShadow: selectedBlockers.includes(blocker.id) 
-                            ? `0 0 30px ${blocker.color}40` 
+                          background: selectedBlockers.length > 0
+                            ? 'linear-gradient(135deg, #ffffff 0%, #888888 100%)'
+                            : '#374151',
+                          color: 'black',
+                          boxShadow: selectedBlockers.length > 0
+                            ? '0 0 40px rgba(255,255,255,0.4)' 
                             : 'none'
                         }}
                       >
-                        <div className="text-2xl font-bold text-white mb-2"
-                             style={{ 
-                               color: selectedBlockers.includes(blocker.id) ? blocker.color : 'white',
-                               textShadow: selectedBlockers.includes(blocker.id) 
-                                 ? `0 0 10px ${blocker.color}` 
-                                 : 'none'
-                             }}>
-                          {blocker.name}
-                        </div>
+                        Find Unblocked Sites →
                       </button>
-                    ))}
-                  </div>
-                  
-                  <button
-                    onClick={testLinks}
-                    disabled={selectedBlockers.length === 0 || testSites.length === 0}
-                    className="w-full py-4 rounded-xl font-bold text-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{
-                      background: selectedBlockers.length > 0 && testSites.length > 0
-                        ? 'linear-gradient(135deg, #ffffff 0%, #888888 100%)'
-                        : '#374151',
-                      color: 'black',
-                      boxShadow: selectedBlockers.length > 0 && testSites.length > 0
-                        ? '0 0 40px rgba(255,255,255,0.4)' 
-                        : 'none'
-                    }}
-                  >
-                    {testSites.length === 0 ? 'Loading sites...' : 'Find Unblocked Sites →'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-
-          const TestingScreen = () => (
-            <div className="min-h-screen bg-black flex items-center justify-center">
-              <div className="text-center">
-                <LoaderIcon />
-                <h2 className="text-3xl font-bold text-white mb-2"
-                    style={{ textShadow: '0 0 20px rgba(255,255,255,0.5)' }}>
-                  Testing Links...
-                </h2>
-                <p className="text-gray-400">Finding unblocked sites for you</p>
-              </div>
-            </div>
-          );
-
-          const ResultsScreen = () => (
-            <div className="min-h-screen bg-black p-8">
-              <div className="max-w-4xl mx-auto">
-                <button
-                  onClick={() => { setStage('select'); setSelectedBlockers([]); setResults([]); setApiError(false); }}
-                  className="mb-6 text-white hover:text-gray-300 transition-colors flex items-center gap-2"
-                >
-                  ← Back
-                </button>
-                
-                {apiError && (
-                  <div className="mb-6 bg-yellow-900/20 border border-yellow-600/50 rounded-xl p-4 flex items-start gap-3">
-                    <AlertIcon />
-                    <div>
-                      <p className="text-yellow-200 font-semibold mb-1">Demo Mode Active</p>
-                      <p className="text-yellow-300/80 text-sm">
-                        API not configured. Update the API_URL in the code with your Cloudflare Worker URL for real testing.
-                      </p>
                     </div>
                   </div>
-                )}
-                
-                <h1 className="text-4xl font-black text-white mb-8"
-                    style={{ textShadow: '0 0 20px rgba(255,255,255,0.8)' }}>
-                  {results.length > 0 ? 'Unblocked Sites Found' : 'No Unblocked Sites Found'}
-                </h1>
-                
-                {results.length === 0 ? (
-                  <div className="bg-gray-900 rounded-xl p-12 border border-gray-800 text-center">
-                    <div className="text-6xl mb-4">😿</div>
-                    <p className="text-xl text-gray-400">All tested sites appear to be blocked.</p>
-                    <p className="text-gray-500 mt-2">Try selecting different blockers or check back later.</p>
+                </div>
+              )}
+
+              {stage === 'testing' && (
+                <div className="min-h-screen bg-black flex items-center justify-center">
+                  <div className="text-center">
+                    <LoaderIcon />
+                    <h2 className="text-3xl font-bold text-white mb-2"
+                        style={{ textShadow: '0 0 20px rgba(255,255,255,0.5)' }}>
+                      Testing Links...
+                    </h2>
+                    <p className="text-gray-400">Finding unblocked sites for you</p>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {results.map((site, idx) => (
-                      <div key={idx} 
-                           className="bg-gray-900 rounded-xl p-6 border border-gray-800 hover:border-white/20 transition-all"
-                           style={{ boxShadow: '0 0 20px rgba(255,255,255,0.05)' }}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-xl font-bold text-white mb-1">{site.name}</h3>
-                            <p className="text-gray-400 text-sm">{site.url}</p>
-                            {site.responseTime && (
-                              <p className="text-green-400 text-xs mt-1">Response: {site.responseTime}ms</p>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => handleOpenLink(site.url)}
-                            className="px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-all hover:scale-105"
-                            style={{
-                              background: 'linear-gradient(135deg, #ffffff 0%, #888888 100%)',
-                              color: 'black',
-                              boxShadow: '0 0 20px rgba(255,255,255,0.3)'
-                            }}
-                          >
-                            Open <ExternalLinkIcon />
-                          </button>
+                </div>
+              )}
+
+              {stage === 'results' && (
+                <div className="min-h-screen bg-black p-8">
+                  <div className="max-w-4xl mx-auto">
+                    <button
+                      onClick={() => { setStage('select'); setSelectedBlockers([]); setResults([]); setApiError(false); }}
+                      className="mb-6 text-white hover:text-gray-300 transition-colors flex items-center gap-2"
+                    >
+                      ← Back
+                    </button>
+                    
+                    {apiError && (
+                      <div className="mb-6 bg-red-900/20 border border-red-600/50 rounded-xl p-4 flex items-start gap-3">
+                        <AlertIcon />
+                        <div>
+                          <p className="text-red-200 font-semibold mb-1">⚠️ API Connection Failed</p>
+                          <p className="text-red-300/80 text-sm">
+                            Could not connect to the Cloudflare Worker API at {API_URL}. 
+                            Please check that your Worker is deployed and the URL is correct. 
+                            Open the browser console (F12) for detailed error logs.
+                          </p>
                         </div>
                       </div>
-                    ))}
+                    )}
+                    
+                    <h1 className="text-4xl font-black text-white mb-8"
+                        style={{ textShadow: '0 0 20px rgba(255,255,255,0.8)' }}>
+                      {results.length > 0 ? 'Unblocked Sites Found' : 'No Unblocked Sites Found'}
+                    </h1>
+                    
+                    {results.length === 0 ? (
+                      <div className="bg-gray-900 rounded-xl p-12 border border-gray-800 text-center">
+                        <div className="text-6xl mb-4">😿</div>
+                        <p className="text-xl text-gray-400">All tested sites appear to be blocked.</p>
+                        <p className="text-gray-500 mt-2">Try selecting different blockers or check back later.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {results.map((site, idx) => (
+                          <div key={idx} 
+                               className="bg-gray-900 rounded-xl p-6 border border-gray-800 hover:border-white/20 transition-all"
+                               style={{ boxShadow: '0 0 20px rgba(255,255,255,0.05)' }}>
+                            <div className="flex items-center justify-between flex-wrap gap-4">
+                              <div>
+                                <h3 className="text-xl font-bold text-white mb-1">{site.name}</h3>
+                                <p className="text-gray-400 text-sm break-all">{site.url}</p>
+                                {site.responseTime && (
+                                  <p className="text-green-400 text-xs mt-1">Response: {site.responseTime}ms</p>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => handleOpenLink(site.url)}
+                                className="px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-all hover:scale-105 whitespace-nowrap"
+                                style={{
+                                  background: 'linear-gradient(135deg, #ffffff 0%, #888888 100%)',
+                                  color: 'black',
+                                  boxShadow: '0 0 20px rgba(255,255,255,0.3)'
+                                }}
+                              >
+                                Open <ExternalLinkIcon />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-          );
-
-          const AdScreen = () => (
-            <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50">
-              <div className="bg-gray-900 rounded-2xl p-12 border border-gray-800 text-center max-w-md"
-                   style={{ boxShadow: '0 0 60px rgba(255,255,255,0.1)' }}>
-                <div className="text-6xl mb-4">📺</div>
-                <h2 className="text-3xl font-bold text-white mb-4"
-                    style={{ textShadow: '0 0 20px rgba(255,255,255,0.5)' }}>
-                  Quick Ad Break
-                </h2>
-                <p className="text-gray-400 mb-6">Your link will open in...</p>
-                <div className="text-8xl font-black text-white mb-6"
-                     style={{ textShadow: '0 0 40px rgba(255,255,255,0.8)' }}>
-                  {adCountdown}
                 </div>
-                <p className="text-sm text-gray-500">Thanks for supporting Catto.xd!</p>
-              </div>
-            </div>
-          );
+              )}
 
-          return (
-            <>
-              {stage === 'loading' && <LoadingScreen />}
-              {stage === 'select' && <SelectScreen />}
-              {stage === 'testing' && <TestingScreen />}
-              {stage === 'results' && <ResultsScreen />}
-              {showAd && <AdScreen />}
-            </>
+              {showAd && (
+                <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50">
+                  <div className="bg-gray-900 rounded-2xl p-12 border border-gray-800 text-center max-w-md"
+                       style={{ boxShadow: '0 0 60px rgba(255,255,255,0.1)' }}>
+                    <div className="text-6xl mb-4">📺</div>
+                    <h2 className="text-3xl font-bold text-white mb-4"
+                        style={{ textShadow: '0 0 20px rgba(255,255,255,0.5)' }}>
+                      Quick Ad Break
+                    </h2>
+                    <p className="text-gray-400 mb-6">Your link will open in...</p>
+                    <div className="text-8xl font-black text-white mb-6"
+                         style={{ textShadow: '0 0 40px rgba(255,255,255,0.8)' }}>
+                      {adCountdown}
+                    </div>
+                    <p className="text-sm text-gray-500">Thanks for supporting Catto.xd!</p>
+                  </div>
+                </div>
+              )}
+            </div>
           );
         };
 
