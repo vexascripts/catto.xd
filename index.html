@@ -94,12 +94,33 @@
 
     <!-- Ad Overlay -->
     <div id="ad-overlay" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center z-50">
-        <div class="card p-12 text-center max-w-md">
+        <div class="card p-8 text-center max-w-2xl w-full mx-4">
             <div class="text-6xl mb-4">📺</div>
-            <h2 class="text-3xl font-bold glow mb-4">Quick Ad Break</h2>
-            <p class="text-gray-400 mb-6">Your link will open in...</p>
-            <div id="countdown" class="text-8xl font-black glow mb-6">5</div>
+            <h2 class="text-3xl font-bold glow mb-4">Watch Ad to Continue</h2>
+            <p class="text-gray-400 mb-6">Please wait while the ad loads...</p>
+            
+            <!-- Ad Container -->
+            <div id="ad-container" class="bg-gray-900 rounded-lg p-4 mb-6 min-h-[250px] flex items-center justify-center border border-gray-700">
+                <div id="ad-frame-wrapper" style="width: 100%; max-width: 728px;">
+                    <iframe data-aa='2423345' 
+                            src='//acceptable.a-ads.com/2423345/?size=728x90'
+                            style='border:0; padding:0; width:100%; height:90px; overflow:hidden; display:block; background: #1a1a1a;'></iframe>
+                </div>
+            </div>
+            
+            <!-- Countdown Timer -->
+            <div id="countdown-section" class="mb-6">
+                <p class="text-gray-400 mb-2">Your link will open in...</p>
+                <div id="countdown" class="text-7xl font-black glow mb-2">8</div>
+                <div class="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
+                    <div id="progress-bar" class="bg-white h-full transition-all duration-1000" style="width: 0%"></div>
+                </div>
+            </div>
+            
             <p class="text-sm text-gray-500">Thanks for supporting Catto.xd!</p>
+            <button id="close-ad" class="hidden mt-4 px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm">
+                Close
+            </button>
         </div>
     </div>
 
@@ -107,6 +128,7 @@
         // CONFIGURATION
         const API_URL = 'https://catto-xd-api.wsknauf.workers.dev/check';
         const DEBUG_MODE = true;
+        const AD_DURATION = 8; // seconds to wait before opening link
         
         const blockers = [
             { id: 'goguardian', name: 'GoGuardian', color: '#00D4FF' },
@@ -130,6 +152,7 @@
 
         let selectedBlockers = [];
         let pendingUrl = '';
+        let adInterval = null;
 
         // Load custom sites from JSON if available
         fetch('./sites.json')
@@ -143,24 +166,18 @@
             const loadingDots = document.getElementById('loading-dots');
             const loadingScreen = document.getElementById('loading-screen');
 
-            // Step 1: Show "Catto" (already visible)
-            
-            // Step 2: After 800ms, slide in ".xd"
             setTimeout(() => {
                 xdText.classList.add('slide-in');
             }, 800);
 
-            // Step 3: Show loading dots after .xd finishes sliding
             setTimeout(() => {
                 loadingDots.style.opacity = '1';
             }, 1600);
 
-            // Step 4: Let it sit for a bit, then fade out
             setTimeout(() => {
                 loadingScreen.classList.add('fade-out');
             }, 4000);
 
-            // Step 5: Show select screen
             setTimeout(() => {
                 loadingScreen.classList.add('hidden');
                 loadingScreen.classList.remove('fade-out');
@@ -169,7 +186,6 @@
             }, 4500);
         }
 
-        // Start intro on load
         playIntro();
 
         function renderBlockers() {
@@ -258,7 +274,6 @@
                         }
                     }
 
-                    // CRITICAL: Only add sites that are explicitly accessible
                     if (data.accessible === true) {
                         results.push({
                             ...site,
@@ -335,21 +350,58 @@
 
         function openLink(url) {
             pendingUrl = url;
-            document.getElementById('ad-overlay').classList.remove('hidden');
-            let count = 5;
+            const overlay = document.getElementById('ad-overlay');
+            const countdown = document.getElementById('countdown');
+            const progressBar = document.getElementById('progress-bar');
+            const closeBtn = document.getElementById('close-ad');
             
-            const interval = setInterval(() => {
+            // Show overlay
+            overlay.classList.remove('hidden');
+            
+            // Reset countdown
+            let count = AD_DURATION;
+            countdown.textContent = count;
+            progressBar.style.width = '0%';
+            closeBtn.classList.add('hidden');
+            
+            // Clear any existing interval
+            if (adInterval) clearInterval(adInterval);
+            
+            // Start countdown
+            adInterval = setInterval(() => {
                 count--;
-                document.getElementById('countdown').textContent = count;
+                countdown.textContent = count;
+                
+                // Update progress bar
+                const progress = ((AD_DURATION - count) / AD_DURATION) * 100;
+                progressBar.style.width = progress + '%';
                 
                 if (count === 0) {
-                    clearInterval(interval);
+                    clearInterval(adInterval);
+                    adInterval = null;
+                    
+                    // Open the link
                     window.open(pendingUrl, '_blank');
-                    document.getElementById('ad-overlay').classList.add('hidden');
-                    document.getElementById('countdown').textContent = '5';
+                    
+                    // Show close button and update message
+                    countdown.textContent = '✓';
+                    countdown.classList.add('text-green-400');
+                    closeBtn.classList.remove('hidden');
                 }
             }, 1000);
         }
+
+        // Close ad overlay
+        document.getElementById('close-ad').addEventListener('click', () => {
+            if (adInterval) {
+                clearInterval(adInterval);
+                adInterval = null;
+            }
+            document.getElementById('ad-overlay').classList.add('hidden');
+            document.getElementById('countdown').textContent = AD_DURATION;
+            document.getElementById('countdown').classList.remove('text-green-400');
+            document.getElementById('progress-bar').style.width = '0%';
+        });
 
         document.getElementById('back-btn').addEventListener('click', () => {
             document.getElementById('results-screen').classList.add('hidden');
