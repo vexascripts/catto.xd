@@ -4,392 +4,301 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Catto.xd - Professional Blocker Bypass</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; color: #fff; font-family: system-ui, -apple-system, sans-serif; }
+        .glow { text-shadow: 0 0 20px rgba(255,255,255,0.8); }
+        .btn-glow { box-shadow: 0 0 40px rgba(255,255,255,0.4); }
+        .card { background: #111; border: 1px solid #333; border-radius: 16px; }
+        .hidden { display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { animation: spin 1s linear infinite; }
+    </style>
 </head>
-<body style="margin:0;padding:0;background:#000">
-    <div id="root"></div>
-    
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="flex flex-col items-center justify-center h-screen">
+        <div class="text-8xl mb-8 animate-bounce">😺</div>
+        <h1 class="text-6xl font-black glow mb-4">Catto.xd</h1>
+        <div class="flex gap-2 mt-8">
+            <div class="w-3 h-3 rounded-full bg-white animate-pulse"></div>
+            <div class="w-3 h-3 rounded-full bg-white animate-pulse" style="animation-delay: 0.2s;"></div>
+            <div class="w-3 h-3 rounded-full bg-white animate-pulse" style="animation-delay: 0.4s;"></div>
+        </div>
+    </div>
 
-        const CattoXD = () => {
-          const [stage, setStage] = useState('loading');
-          const [selectedBlockers, setSelectedBlockers] = useState([]);
-          const [testing, setTesting] = useState(false);
-          const [results, setResults] = useState([]);
-          const [showAd, setShowAd] = useState(false);
-          const [adCountdown, setAdCountdown] = useState(5);
-          const [pendingUrl, setPendingUrl] = useState('');
-          const [apiError, setApiError] = useState(false);
-          const [testSites, setTestSites] = useState([
-            { name: 'Google Sites Proxy', url: 'https://sites.google.com/view/unblocker' },
-            { name: 'GitHub Pages', url: 'https://pages.github.com' },
-            { name: 'Netlify App', url: 'https://app.netlify.com' },
-            { name: 'Vercel App', url: 'https://vercel.com' },
-            { name: 'Glitch Project', url: 'https://glitch.com' },
-            { name: 'Replit Sites', url: 'https://replit.com' }
-          ]);
+    <!-- Select Screen -->
+    <div id="select-screen" class="hidden min-h-screen p-8">
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-5xl font-black text-center glow mb-2">Catto.xd</h1>
+            <p class="text-gray-400 text-center mb-12">Professional Blocker Bypass</p>
+            
+            <div class="card p-8">
+                <h2 class="text-3xl font-bold mb-6 flex items-center gap-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    Select Your Blocker(s)
+                </h2>
+                
+                <div id="blockers-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8"></div>
+                
+                <button id="test-btn" disabled class="w-full py-4 rounded-xl font-bold text-xl bg-gray-700 text-gray-400 cursor-not-allowed">
+                    Select at least one blocker
+                </button>
+            </div>
+        </div>
+    </div>
 
-          const API_URL = 'https://catto-xd-api.wsknauf.workers.dev/check';
+    <!-- Testing Screen -->
+    <div id="testing-screen" class="hidden min-h-screen flex items-center justify-center">
+        <div class="text-center">
+            <svg class="w-16 h-16 text-white mx-auto mb-4 spinner" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h2 class="text-3xl font-bold glow mb-2">Testing Links...</h2>
+            <p class="text-gray-400" id="testing-status">Initializing...</p>
+        </div>
+    </div>
 
-          const blockers = [
+    <!-- Results Screen -->
+    <div id="results-screen" class="hidden min-h-screen p-8">
+        <div class="max-w-4xl mx-auto">
+            <button id="back-btn" class="mb-6 text-white hover:text-gray-300 transition-colors">← Back</button>
+            
+            <div id="api-warning" class="hidden mb-6 bg-red-900/20 border border-red-600/50 rounded-xl p-4">
+                <p class="text-red-200 font-semibold mb-1">⚠️ API Connection Failed</p>
+                <p class="text-red-300/80 text-sm">Could not connect to the API. Check console for details.</p>
+            </div>
+            
+            <h1 class="text-4xl font-black glow mb-8" id="results-title">Results</h1>
+            <div id="results-container"></div>
+        </div>
+    </div>
+
+    <!-- Ad Overlay -->
+    <div id="ad-overlay" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center z-50">
+        <div class="card p-12 text-center max-w-md">
+            <div class="text-6xl mb-4">📺</div>
+            <h2 class="text-3xl font-bold glow mb-4">Quick Ad Break</h2>
+            <p class="text-gray-400 mb-6">Your link will open in...</p>
+            <div id="countdown" class="text-8xl font-black glow mb-6">5</div>
+            <p class="text-sm text-gray-500">Thanks for supporting Catto.xd!</p>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://catto-xd-api.wsknauf.workers.dev/check';
+        
+        const blockers = [
             { id: 'goguardian', name: 'GoGuardian', color: '#00D4FF' },
             { id: 'securly', name: 'Securly', color: '#FF00FF' },
             { id: 'lightspeed', name: 'Lightspeed', color: '#00FF88' },
             { id: 'contentkeeper', name: 'ContentKeeper', color: '#FFD700' },
             { id: 'bark', name: 'Bark', color: '#FF4444' },
             { id: 'iboss', name: 'iBoss', color: '#4444FF' }
-          ];
+        ];
 
-          // Load sites from JSON file
-          useEffect(() => {
-            fetch('./sites.json')
-              .then(response => response.json())
-              .then(data => {
-                if (data && data.sites && data.sites.length > 0) {
-                  setTestSites(data.sites);
-                }
-              })
-              .catch(error => {
-                console.log('Using default sites (sites.json not found)');
-              });
-          }, []);
+        let testSites = [
+            { name: 'Google Sites Proxy', url: 'https://sites.google.com/view/unblocker' },
+            { name: 'GitHub Pages', url: 'https://pages.github.com' },
+            { name: 'Netlify App', url: 'https://app.netlify.com' },
+            { name: 'Vercel App', url: 'https://vercel.com' },
+            { name: 'Glitch Project', url: 'https://glitch.com' },
+            { name: 'Replit Sites', url: 'https://replit.com' }
+        ];
 
-          // Loading screen timer
-          useEffect(() => {
-            if (stage === 'loading') {
-              const timer = setTimeout(() => {
-                console.log('Transitioning from loading to select');
-                setStage('select');
-              }, 2500);
-              return () => clearTimeout(timer);
-            }
-          }, [stage]);
+        let selectedBlockers = [];
+        let pendingUrl = '';
 
-          // Ad countdown timer
-          useEffect(() => {
-            if (showAd && adCountdown > 0) {
-              const timer = setTimeout(() => setAdCountdown(adCountdown - 1), 1000);
-              return () => clearTimeout(timer);
-            } else if (showAd && adCountdown === 0) {
-              window.open(pendingUrl, '_blank');
-              setShowAd(false);
-              setAdCountdown(5);
-              setPendingUrl('');
-            }
-          }, [showAd, adCountdown, pendingUrl]);
+        // Load sites from JSON
+        fetch('./sites.json')
+            .then(r => r.json())
+            .then(data => { if (data.sites) testSites = data.sites; })
+            .catch(e => console.log('Using default sites'));
 
-          const toggleBlocker = (id) => {
-            setSelectedBlockers(prev =>
-              prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]
-            );
-          };
+        // Initialize
+        setTimeout(() => {
+            document.getElementById('loading-screen').classList.add('hidden');
+            document.getElementById('select-screen').classList.remove('hidden');
+            renderBlockers();
+        }, 2500);
 
-          const testLinks = async () => {
-            setTesting(true);
-            setStage('testing');
-            setApiError(false);
+        function renderBlockers() {
+            const grid = document.getElementById('blockers-grid');
+            grid.innerHTML = blockers.map(b => `
+                <button 
+                    class="blocker-btn p-6 rounded-xl border-2 transition-all duration-300 bg-gray-900 hover:bg-gray-800"
+                    data-id="${b.id}"
+                    style="border-color: #374151;"
+                >
+                    <div class="text-2xl font-bold">${b.name}</div>
+                </button>
+            `).join('');
+
+            document.querySelectorAll('.blocker-btn').forEach(btn => {
+                btn.addEventListener('click', () => toggleBlocker(btn.dataset.id));
+            });
+        }
+
+        function toggleBlocker(id) {
+            const blocker = blockers.find(b => b.id === id);
+            const btn = document.querySelector(`[data-id="${id}"]`);
             
-            try {
-              console.log('Starting API checks with URL:', API_URL);
-              console.log('Selected blockers:', selectedBlockers);
-              console.log('Testing sites:', testSites);
+            if (selectedBlockers.includes(id)) {
+                selectedBlockers = selectedBlockers.filter(b => b !== id);
+                btn.style.borderColor = '#374151';
+                btn.style.boxShadow = 'none';
+                btn.classList.remove('bg-gray-800', 'scale-105');
+                btn.querySelector('div').style.color = 'white';
+                btn.querySelector('div').style.textShadow = 'none';
+            } else {
+                selectedBlockers.push(id);
+                btn.style.borderColor = blocker.color;
+                btn.style.boxShadow = `0 0 30px ${blocker.color}40`;
+                btn.classList.add('bg-gray-800', 'scale-105');
+                btn.querySelector('div').style.color = blocker.color;
+                btn.querySelector('div').style.textShadow = `0 0 10px ${blocker.color}`;
+            }
 
-              const checkPromises = testSites.map(async (site) => {
+            updateTestButton();
+        }
+
+        function updateTestButton() {
+            const btn = document.getElementById('test-btn');
+            if (selectedBlockers.length > 0) {
+                btn.disabled = false;
+                btn.className = 'w-full py-4 rounded-xl font-bold text-xl bg-gradient-to-br from-white to-gray-500 text-black btn-glow cursor-pointer hover:scale-105 transition-transform';
+                btn.textContent = 'Find Unblocked Sites →';
+                btn.onclick = testLinks;
+            } else {
+                btn.disabled = true;
+                btn.className = 'w-full py-4 rounded-xl font-bold text-xl bg-gray-700 text-gray-400 cursor-not-allowed';
+                btn.textContent = 'Select at least one blocker';
+                btn.onclick = null;
+            }
+        }
+
+        async function testLinks() {
+            document.getElementById('select-screen').classList.add('hidden');
+            document.getElementById('testing-screen').classList.remove('hidden');
+            
+            const results = [];
+            let apiError = false;
+
+            for (let i = 0; i < testSites.length; i++) {
+                const site = testSites[i];
+                document.getElementById('testing-status').textContent = `Testing ${i + 1}/${testSites.length}: ${site.name}`;
+                
                 try {
-                  console.log(`Checking ${site.url}...`);
-                  const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 
-                      'Content-Type': 'application/json',
-                      'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                      url: site.url,
-                      blockers: selectedBlockers 
-                    })
-                  });
-                  
-                  if (!response.ok) {
-                    console.error(`HTTP error for ${site.url}: ${response.status}`);
-                    throw new Error(`HTTP ${response.status}`);
-                  }
+                    console.log(`Testing ${site.url} with blockers:`, selectedBlockers);
+                    
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            url: site.url,
+                            blockers: selectedBlockers 
+                        })
+                    });
 
-                  const data = await response.json();
-                  console.log(`Result for ${site.url}:`, data);
-                  
-                  return {
-                    ...site,
-                    status: data.accessible ? 'unblocked' : 'blocked',
-                    responseTime: data.responseTime,
-                    blockInfo: data.blockedBy || []
-                  };
+                    if (!response.ok) {
+                        console.error(`API error for ${site.url}:`, response.status);
+                        apiError = true;
+                        continue;
+                    }
+
+                    const data = await response.json();
+                    console.log(`Result for ${site.url}:`, data);
+
+                    if (data.accessible === true) {
+                        results.push({
+                            ...site,
+                            responseTime: data.responseTime
+                        });
+                    }
                 } catch (error) {
-                  console.error(`Error checking ${site.url}:`, error);
-                  return { ...site, status: 'error', error: error.message };
+                    console.error(`Error testing ${site.url}:`, error);
+                    apiError = true;
                 }
-              });
-
-              const allResults = await Promise.all(checkPromises);
-              console.log('All results:', allResults);
-              
-              const unblockedSites = allResults.filter(r => r.status === 'unblocked');
-              console.log('Unblocked sites:', unblockedSites);
-              
-              // Check if API actually worked
-              const allErrors = allResults.every(r => r.status === 'error');
-              if (allErrors) {
-                console.error('All API calls failed - API may not be working');
-                setApiError(true);
-              }
-              
-              setResults(unblockedSites);
-            } catch (error) {
-              console.error('Critical testing error:', error);
-              setApiError(true);
-              setResults([]);
             }
-            
-            setTesting(false);
-            setStage('results');
-          };
 
-          const handleOpenLink = (url) => {
-            setPendingUrl(url);
-            setShowAd(true);
-          };
+            showResults(results, apiError);
+        }
 
-          const ShieldIcon = () => (
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.5))' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-          );
+        function showResults(results, apiError) {
+            document.getElementById('testing-screen').classList.add('hidden');
+            document.getElementById('results-screen').classList.remove('hidden');
 
-          const LoaderIcon = () => (
-            <svg className="w-16 h-16 text-white animate-spin mx-auto mb-4" fill="none" viewBox="0 0 24 24" style={{ filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.8))' }}>
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          );
+            if (apiError) {
+                document.getElementById('api-warning').classList.remove('hidden');
+            }
 
-          const ExternalLinkIcon = () => (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          );
+            const title = document.getElementById('results-title');
+            const container = document.getElementById('results-container');
 
-          const AlertIcon = () => (
-            <svg className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          );
-
-          console.log('Current stage:', stage);
-
-          return (
-            <div style={{ minHeight: '100vh', background: '#000' }}>
-              {stage === 'loading' && (
-                <div className="flex flex-col items-center justify-center h-screen bg-black">
-                  <div className="relative mb-8">
-                    <div className="absolute inset-0 bg-white blur-3xl opacity-20 animate-pulse"></div>
-                    <div className="relative text-8xl font-bold text-white animate-bounce" 
-                         style={{ textShadow: '0 0 40px rgba(255,255,255,0.8), 0 0 80px rgba(255,255,255,0.4)' }}>
-                      😺
+            if (results.length === 0) {
+                title.textContent = 'No Unblocked Sites Found';
+                container.innerHTML = `
+                    <div class="card p-12 text-center">
+                        <div class="text-6xl mb-4">😿</div>
+                        <p class="text-xl text-gray-400">All tested sites appear to be blocked.</p>
+                        <p class="text-gray-500 mt-2">Try selecting different blockers or check back later.</p>
                     </div>
-                  </div>
-                  <h1 className="text-6xl font-black text-white mb-4 tracking-wider"
-                      style={{ textShadow: '0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.4)' }}>
-                    Catto.xd
-                  </h1>
-                  <div className="flex gap-2 mt-8">
-                    {[0, 1, 2].map(i => (
-                      <div key={i} 
-                           className="w-3 h-3 rounded-full bg-white animate-pulse"
-                           style={{ 
-                             animationDelay: `${i * 0.2}s`,
-                             boxShadow: '0 0 10px rgba(255,255,255,0.8)'
-                           }}></div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {stage === 'select' && (
-                <div className="min-h-screen bg-black p-8">
-                  <div className="max-w-4xl mx-auto">
-                    <h1 className="text-5xl font-black text-white mb-2 text-center"
-                        style={{ textShadow: '0 0 20px rgba(255,255,255,0.8)' }}>
-                      Catto.xd
-                    </h1>
-                    <p className="text-gray-400 text-center mb-12">Professional Blocker Bypass</p>
-                    
-                    <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800"
-                         style={{ boxShadow: '0 0 40px rgba(255,255,255,0.05)' }}>
-                      <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-                        <ShieldIcon />
-                        Select Your Blocker(s)
-                      </h2>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-                        {blockers.map(blocker => (
-                          <button
-                            key={blocker.id}
-                            onClick={() => toggleBlocker(blocker.id)}
-                            className={`p-6 rounded-xl border-2 transition-all duration-300 ${
-                              selectedBlockers.includes(blocker.id)
-                                ? 'bg-gray-800 scale-105'
-                                : 'bg-gray-900 hover:bg-gray-800'
-                            }`}
-                            style={{
-                              borderColor: selectedBlockers.includes(blocker.id) ? blocker.color : '#374151',
-                              boxShadow: selectedBlockers.includes(blocker.id) 
-                                ? `0 0 30px ${blocker.color}40` 
-                                : 'none'
-                            }}
-                          >
-                            <div className="text-2xl font-bold text-white mb-2"
-                                 style={{ 
-                                   color: selectedBlockers.includes(blocker.id) ? blocker.color : 'white',
-                                   textShadow: selectedBlockers.includes(blocker.id) 
-                                     ? `0 0 10px ${blocker.color}` 
-                                     : 'none'
-                                 }}>
-                              {blocker.name}
+                `;
+            } else {
+                title.textContent = `Found ${results.length} Unblocked Site${results.length > 1 ? 's' : ''}`;
+                container.innerHTML = results.map(site => `
+                    <div class="card p-6 mb-4 hover:border-white/20 transition-all">
+                        <div class="flex items-center justify-between flex-wrap gap-4">
+                            <div>
+                                <h3 class="text-xl font-bold mb-1">${site.name}</h3>
+                                <p class="text-gray-400 text-sm break-all">${site.url}</p>
+                                ${site.responseTime ? `<p class="text-green-400 text-xs mt-1">Response: ${site.responseTime}ms</p>` : ''}
                             </div>
-                          </button>
-                        ))}
-                      </div>
-                      
-                      <button
-                        onClick={testLinks}
-                        disabled={selectedBlockers.length === 0}
-                        className="w-full py-4 rounded-xl font-bold text-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{
-                          background: selectedBlockers.length > 0
-                            ? 'linear-gradient(135deg, #ffffff 0%, #888888 100%)'
-                            : '#374151',
-                          color: 'black',
-                          boxShadow: selectedBlockers.length > 0
-                            ? '0 0 40px rgba(255,255,255,0.4)' 
-                            : 'none'
-                        }}
-                      >
-                        Find Unblocked Sites →
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {stage === 'testing' && (
-                <div className="min-h-screen bg-black flex items-center justify-center">
-                  <div className="text-center">
-                    <LoaderIcon />
-                    <h2 className="text-3xl font-bold text-white mb-2"
-                        style={{ textShadow: '0 0 20px rgba(255,255,255,0.5)' }}>
-                      Testing Links...
-                    </h2>
-                    <p className="text-gray-400">Finding unblocked sites for you</p>
-                  </div>
-                </div>
-              )}
-
-              {stage === 'results' && (
-                <div className="min-h-screen bg-black p-8">
-                  <div className="max-w-4xl mx-auto">
-                    <button
-                      onClick={() => { setStage('select'); setSelectedBlockers([]); setResults([]); setApiError(false); }}
-                      className="mb-6 text-white hover:text-gray-300 transition-colors flex items-center gap-2"
-                    >
-                      ← Back
-                    </button>
-                    
-                    {apiError && (
-                      <div className="mb-6 bg-red-900/20 border border-red-600/50 rounded-xl p-4 flex items-start gap-3">
-                        <AlertIcon />
-                        <div>
-                          <p className="text-red-200 font-semibold mb-1">⚠️ API Connection Failed</p>
-                          <p className="text-red-300/80 text-sm">
-                            Could not connect to the Cloudflare Worker API at {API_URL}. 
-                            Please check that your Worker is deployed and the URL is correct. 
-                            Open the browser console (F12) for detailed error logs.
-                          </p>
+                            <button 
+                                class="px-6 py-3 rounded-lg font-bold bg-gradient-to-br from-white to-gray-500 text-black hover:scale-105 transition-transform flex items-center gap-2"
+                                onclick="openLink('${site.url}')"
+                            >
+                                Open
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                            </button>
                         </div>
-                      </div>
-                    )}
-                    
-                    <h1 className="text-4xl font-black text-white mb-8"
-                        style={{ textShadow: '0 0 20px rgba(255,255,255,0.8)' }}>
-                      {results.length > 0 ? 'Unblocked Sites Found' : 'No Unblocked Sites Found'}
-                    </h1>
-                    
-                    {results.length === 0 ? (
-                      <div className="bg-gray-900 rounded-xl p-12 border border-gray-800 text-center">
-                        <div className="text-6xl mb-4">😿</div>
-                        <p className="text-xl text-gray-400">All tested sites appear to be blocked.</p>
-                        <p className="text-gray-500 mt-2">Try selecting different blockers or check back later.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {results.map((site, idx) => (
-                          <div key={idx} 
-                               className="bg-gray-900 rounded-xl p-6 border border-gray-800 hover:border-white/20 transition-all"
-                               style={{ boxShadow: '0 0 20px rgba(255,255,255,0.05)' }}>
-                            <div className="flex items-center justify-between flex-wrap gap-4">
-                              <div>
-                                <h3 className="text-xl font-bold text-white mb-1">{site.name}</h3>
-                                <p className="text-gray-400 text-sm break-all">{site.url}</p>
-                                {site.responseTime && (
-                                  <p className="text-green-400 text-xs mt-1">Response: {site.responseTime}ms</p>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => handleOpenLink(site.url)}
-                                className="px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-all hover:scale-105 whitespace-nowrap"
-                                style={{
-                                  background: 'linear-gradient(135deg, #ffffff 0%, #888888 100%)',
-                                  color: 'black',
-                                  boxShadow: '0 0 20px rgba(255,255,255,0.3)'
-                                }}
-                              >
-                                Open <ExternalLinkIcon />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {showAd && (
-                <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50">
-                  <div className="bg-gray-900 rounded-2xl p-12 border border-gray-800 text-center max-w-md"
-                       style={{ boxShadow: '0 0 60px rgba(255,255,255,0.1)' }}>
-                    <div className="text-6xl mb-4">📺</div>
-                    <h2 className="text-3xl font-bold text-white mb-4"
-                        style={{ textShadow: '0 0 20px rgba(255,255,255,0.5)' }}>
-                      Quick Ad Break
-                    </h2>
-                    <p className="text-gray-400 mb-6">Your link will open in...</p>
-                    <div className="text-8xl font-black text-white mb-6"
-                         style={{ textShadow: '0 0 40px rgba(255,255,255,0.8)' }}>
-                      {adCountdown}
                     </div>
-                    <p className="text-sm text-gray-500">Thanks for supporting Catto.xd!</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        };
+                `).join('');
+            }
+        }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<CattoXD />);
+        function openLink(url) {
+            pendingUrl = url;
+            document.getElementById('ad-overlay').classList.remove('hidden');
+            let count = 5;
+            
+            const interval = setInterval(() => {
+                count--;
+                document.getElementById('countdown').textContent = count;
+                
+                if (count === 0) {
+                    clearInterval(interval);
+                    window.open(pendingUrl, '_blank');
+                    document.getElementById('ad-overlay').classList.add('hidden');
+                    document.getElementById('countdown').textContent = '5';
+                }
+            }, 1000);
+        }
+
+        document.getElementById('back-btn').addEventListener('click', () => {
+            document.getElementById('results-screen').classList.add('hidden');
+            document.getElementById('select-screen').classList.remove('hidden');
+            document.getElementById('api-warning').classList.add('hidden');
+            selectedBlockers = [];
+            renderBlockers();
+            updateTestButton();
+        });
     </script>
 </body>
 </html>
