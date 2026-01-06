@@ -124,24 +124,25 @@
             { id: 'iboss', name: 'iBoss', color: '#4444FF' }
         ];
 
-        let testSites = [
-            { name: 'Google Sites', url: 'https://sites.google.com' },
-            { name: 'GitHub Pages', url: 'https://pages.github.com' },
-            { name: 'Netlify', url: 'https://netlify.com' },
-            { name: 'Vercel', url: 'https://vercel.com' },
-            { name: 'Glitch', url: 'https://glitch.com' },
-            { name: 'Replit', url: 'https://replit.com' },
-            { name: 'CodePen', url: 'https://codepen.io' },
-            { name: 'JSFiddle', url: 'https://jsfiddle.net' }
-        ];
-
+        let testSites = [];
         let selectedBlockers = [];
         let pendingUrl = '';
+        let sitesLoaded = false;
 
+        // Fetch sites from GitHub - REQUIRED
         fetch('https://raw.githubusercontent.com/vexascripts/catto.xd/main/sites.json')
             .then(r => r.json())
-            .then(data => { if (data.sites) testSites = data.sites; })
-            .catch(() => console.log('Using default sites'));
+            .then(data => { 
+                if (data.sites) {
+                    testSites = data.sites;
+                    sitesLoaded = true;
+                    console.log('Loaded', testSites.length, 'sites from GitHub');
+                }
+            })
+            .catch(err => {
+                console.error('Failed to load sites from GitHub:', err);
+                alert('Failed to load site list from GitHub. Please refresh the page.');
+            });
 
         function playIntro() {
             const xdText = document.getElementById('xd-text');
@@ -217,6 +218,11 @@
         }
 
         async function testLinks() {
+            if (!sitesLoaded || testSites.length === 0) {
+                alert('Site list not loaded yet. Please wait a moment and try again.');
+                return;
+            }
+
             document.getElementById('select-screen').classList.add('hidden');
             document.getElementById('testing-screen').classList.remove('hidden');
             
