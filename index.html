@@ -138,7 +138,7 @@
         let selectedBlockers = [];
         let pendingUrl = '';
 
-        fetch('./sites.json')
+        fetch('https://raw.githubusercontent.com/vexascripts/catto.xd/main/sites.json')
             .then(r => r.json())
             .then(data => { if (data.sites) testSites = data.sites; })
             .catch(() => console.log('Using default sites'));
