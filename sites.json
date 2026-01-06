@@ -1,0 +1,44 @@
+{
+  "sites": [
+    {
+      "name": "Google Sites Proxy",
+      "url": "https://sites.google.com/view/unblocker"
+    },
+    {
+      "name": "Cloudflare Pages",
+      "url": "https://pages.cloudflare.com"
+    },
+    {
+      "name": "Replit Apps",
+      "url": "https://replit.com"
+    },
+    {
+      "name": "GitHub Pages",
+      "url": "https://pages.github.com"
+    },
+    {
+      "name": "Netlify App",
+      "url": "https://app.netlify.com"
+    },
+    {
+      "name": "Vercel App",
+      "url": "https://vercel.com"
+    },
+    {
+      "name": "Glitch Projects",
+      "url": "https://glitch.com"
+    },
+    {
+      "name": "CodeSandbox",
+      "url": "https://codesandbox.io"
+    },
+    {
+      "name": "Render Apps",
+      "url": "https://render.com"
+    },
+    {
+      "name": "Railway Apps",
+      "url": "https://railway.app"
+    }
+  ]
+}
