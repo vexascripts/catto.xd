@@ -7,21 +7,39 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #000; color: #fff; font-family: system-ui, -apple-system, sans-serif; }
+        body { background: #000; color: #fff; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
         .glow { text-shadow: 0 0 20px rgba(255,255,255,0.8); }
         .btn-glow { box-shadow: 0 0 40px rgba(255,255,255,0.4); }
         .card { background: #111; border: 1px solid #333; border-radius: 16px; }
         .hidden { display: none; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideIn { 
+            from { 
+                transform: translateX(200px); 
+                opacity: 0;
+            } 
+            to { 
+                transform: translateX(0); 
+                opacity: 1;
+            } 
+        }
+        .slide-in { 
+            animation: slideIn 0.6s ease-out forwards;
+            opacity: 1 !important;
+        }
+        @keyframes fadeOut { to { opacity: 0; } }
         .spinner { animation: spin 1s linear infinite; }
+        .fade-out { animation: fadeOut 0.5s ease-out forwards; }
     </style>
 </head>
 <body>
-    <!-- Loading Screen -->
+    <!-- Loading Screen with Catto + XD Animation -->
     <div id="loading-screen" class="flex flex-col items-center justify-center h-screen">
-        <div class="text-8xl mb-8 animate-bounce">😺</div>
-        <h1 class="text-6xl font-black glow mb-4">Catto.xd</h1>
-        <div class="flex gap-2 mt-8">
+        <div class="flex items-baseline gap-1">
+            <h1 id="catto-text" class="text-7xl font-black glow">Catto</h1>
+            <h1 id="xd-text" class="text-7xl font-black glow opacity-0">.xd</h1>
+        </div>
+        <div id="loading-dots" class="flex gap-2 mt-8 opacity-0">
             <div class="w-3 h-3 rounded-full bg-white animate-pulse"></div>
             <div class="w-3 h-3 rounded-full bg-white animate-pulse" style="animation-delay: 0.2s;"></div>
             <div class="w-3 h-3 rounded-full bg-white animate-pulse" style="animation-delay: 0.4s;"></div>
@@ -29,22 +47,18 @@
     </div>
 
     <!-- Select Screen -->
-    <div id="select-screen" class="hidden min-h-screen p-8">
-        <div class="max-w-4xl mx-auto">
-            <h1 class="text-5xl font-black text-center glow mb-2">Catto.xd</h1>
-            <p class="text-gray-400 text-center mb-12">Professional Blocker Bypass</p>
+    <div id="select-screen" class="hidden min-h-screen p-8 flex items-center justify-center">
+        <div class="max-w-4xl w-full">
+            <h1 class="text-5xl font-black text-center glow mb-12">Catto.xd</h1>
             
             <div class="card p-8">
-                <h2 class="text-3xl font-bold mb-6 flex items-center gap-3">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
+                <h2 class="text-3xl font-bold mb-6 text-white text-center">
                     Select Your Blocker(s)
                 </h2>
                 
                 <div id="blockers-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8"></div>
                 
-                <button id="test-btn" disabled class="w-full py-4 rounded-xl font-bold text-xl bg-gray-700 text-gray-400 cursor-not-allowed">
+                <button id="test-btn" disabled class="w-full py-4 rounded-xl font-bold text-xl bg-black text-white cursor-not-allowed border-2 border-white opacity-50">
                     Select at least one blocker
                 </button>
             </div>
@@ -90,10 +104,8 @@
     </div>
 
     <script>
-        // IMPORTANT: Update this with your actual Cloudflare Worker URL
+        // CONFIGURATION
         const API_URL = 'https://catto-xd-api.wsknauf.workers.dev/check';
-        
-        // Set to true to see detailed API responses in console
         const DEBUG_MODE = true;
         
         const blockers = [
@@ -106,39 +118,69 @@
         ];
 
         let testSites = [
-            { name: 'Google Sites Proxy', url: 'https://sites.google.com/view/unblocker' },
+            { name: 'Google Sites', url: 'https://sites.google.com' },
             { name: 'GitHub Pages', url: 'https://pages.github.com' },
-            { name: 'Netlify App', url: 'https://app.netlify.com' },
-            { name: 'Vercel App', url: 'https://vercel.com' },
-            { name: 'Glitch Project', url: 'https://glitch.com' },
-            { name: 'Replit Sites', url: 'https://replit.com' }
+            { name: 'Netlify', url: 'https://netlify.com' },
+            { name: 'Vercel', url: 'https://vercel.com' },
+            { name: 'Glitch', url: 'https://glitch.com' },
+            { name: 'Replit', url: 'https://replit.com' },
+            { name: 'CodePen', url: 'https://codepen.io' },
+            { name: 'JSFiddle', url: 'https://jsfiddle.net' }
         ];
 
         let selectedBlockers = [];
         let pendingUrl = '';
 
-        // Load sites from JSON
+        // Load custom sites from JSON if available
         fetch('./sites.json')
             .then(r => r.json())
             .then(data => { if (data.sites) testSites = data.sites; })
-            .catch(e => console.log('Using default sites'));
+            .catch(() => console.log('Using default sites'));
 
-        // Initialize
-        setTimeout(() => {
-            document.getElementById('loading-screen').classList.add('hidden');
-            document.getElementById('select-screen').classList.remove('hidden');
-            renderBlockers();
-        }, 2500);
+        // Intro Animation Sequence
+        function playIntro() {
+            const xdText = document.getElementById('xd-text');
+            const loadingDots = document.getElementById('loading-dots');
+            const loadingScreen = document.getElementById('loading-screen');
+
+            // Step 1: Show "Catto" (already visible)
+            
+            // Step 2: After 800ms, slide in ".xd"
+            setTimeout(() => {
+                xdText.classList.add('slide-in');
+            }, 800);
+
+            // Step 3: Show loading dots after .xd finishes sliding
+            setTimeout(() => {
+                loadingDots.style.opacity = '1';
+            }, 1600);
+
+            // Step 4: Let it sit for a bit, then fade out
+            setTimeout(() => {
+                loadingScreen.classList.add('fade-out');
+            }, 4000);
+
+            // Step 5: Show select screen
+            setTimeout(() => {
+                loadingScreen.classList.add('hidden');
+                loadingScreen.classList.remove('fade-out');
+                document.getElementById('select-screen').classList.remove('hidden');
+                renderBlockers();
+            }, 4500);
+        }
+
+        // Start intro on load
+        playIntro();
 
         function renderBlockers() {
             const grid = document.getElementById('blockers-grid');
             grid.innerHTML = blockers.map(b => `
                 <button 
-                    class="blocker-btn p-6 rounded-xl border-2 transition-all duration-300 bg-gray-900 hover:bg-gray-800"
+                    class="blocker-btn p-6 rounded-xl border-2 transition-all duration-300 bg-black"
                     data-id="${b.id}"
-                    style="border-color: #374151;"
+                    style="border-color: #333;"
                 >
-                    <div class="text-2xl font-bold">${b.name}</div>
+                    <div class="text-2xl font-bold text-white text-center">${b.name}</div>
                 </button>
             `).join('');
 
@@ -148,23 +190,14 @@
         }
 
         function toggleBlocker(id) {
-            const blocker = blockers.find(b => b.id === id);
             const btn = document.querySelector(`[data-id="${id}"]`);
             
             if (selectedBlockers.includes(id)) {
                 selectedBlockers = selectedBlockers.filter(b => b !== id);
-                btn.style.borderColor = '#374151';
-                btn.style.boxShadow = 'none';
-                btn.classList.remove('bg-gray-800', 'scale-105');
-                btn.querySelector('div').style.color = 'white';
-                btn.querySelector('div').style.textShadow = 'none';
+                btn.style.borderColor = '#333';
             } else {
                 selectedBlockers.push(id);
-                btn.style.borderColor = blocker.color;
-                btn.style.boxShadow = `0 0 30px ${blocker.color}40`;
-                btn.classList.add('bg-gray-800', 'scale-105');
-                btn.querySelector('div').style.color = blocker.color;
-                btn.querySelector('div').style.textShadow = `0 0 10px ${blocker.color}`;
+                btn.style.borderColor = '#fff';
             }
 
             updateTestButton();
@@ -174,12 +207,12 @@
             const btn = document.getElementById('test-btn');
             if (selectedBlockers.length > 0) {
                 btn.disabled = false;
-                btn.className = 'w-full py-4 rounded-xl font-bold text-xl bg-gradient-to-br from-white to-gray-500 text-black btn-glow cursor-pointer hover:scale-105 transition-transform';
+                btn.className = 'w-full py-4 rounded-xl font-bold text-xl bg-white text-black cursor-pointer hover:bg-gray-200 transition-colors border-2 border-white';
                 btn.textContent = 'Find Unblocked Sites →';
                 btn.onclick = testLinks;
             } else {
                 btn.disabled = true;
-                btn.className = 'w-full py-4 rounded-xl font-bold text-xl bg-gray-700 text-gray-400 cursor-not-allowed';
+                btn.className = 'w-full py-4 rounded-xl font-bold text-xl bg-black text-white cursor-not-allowed border-2 border-white opacity-50';
                 btn.textContent = 'Select at least one blocker';
                 btn.onclick = null;
             }
@@ -210,32 +243,43 @@
                     });
 
                     if (!response.ok) {
-                        console.error(`API error for ${site.url}:`, response.status);
+                        console.error(`API HTTP Error ${response.status} for ${site.url}`);
                         apiError = true;
                         continue;
                     }
 
                     const data = await response.json();
+                    
                     if (DEBUG_MODE) {
                         console.log('API Response:', data);
-                        console.log(`Accessible: ${data.accessible}`);
-                        if (data.blockedBy) console.log('Blocked by:', data.blockedBy);
+                        console.log(`→ Accessible: ${data.accessible}`);
+                        if (data.blockedBy && data.blockedBy.length > 0) {
+                            console.log(`→ Blocked by: ${data.blockedBy.join(', ')}`);
+                        }
                     }
 
-                    // STRICT CHECK: Only add if explicitly accessible
+                    // CRITICAL: Only add sites that are explicitly accessible
                     if (data.accessible === true) {
                         results.push({
                             ...site,
                             responseTime: data.responseTime
                         });
-                        if (DEBUG_MODE) console.log('✓ Site is UNBLOCKED - Added to results');
+                        if (DEBUG_MODE) console.log('✅ UNBLOCKED - Added to results');
                     } else {
-                        if (DEBUG_MODE) console.log('✗ Site is BLOCKED - Not adding to results');
+                        if (DEBUG_MODE) console.log('❌ BLOCKED - Not adding to results');
                     }
+                    
                 } catch (error) {
-                    console.error(`Error testing ${site.url}:`, error);
+                    console.error(`Error testing ${site.url}:`, error.message);
                     apiError = true;
                 }
+            }
+
+            if (DEBUG_MODE) {
+                console.log('\n=== FINAL RESULTS ===');
+                console.log(`Total sites tested: ${testSites.length}`);
+                console.log(`Unblocked sites found: ${results.length}`);
+                console.log('Sites:', results.map(s => s.name));
             }
 
             showResults(results, apiError);
@@ -257,8 +301,11 @@
                 container.innerHTML = `
                     <div class="card p-12 text-center">
                         <div class="text-6xl mb-4">😿</div>
-                        <p class="text-xl text-gray-400">All tested sites appear to be blocked.</p>
-                        <p class="text-gray-500 mt-2">Try selecting different blockers or check back later.</p>
+                        <p class="text-xl text-gray-400 mb-2">All tested sites appear to be blocked.</p>
+                        <p class="text-gray-500 mb-4">The selected blocker(s) are blocking all test sites.</p>
+                        <button onclick="location.reload()" class="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                            Try Again
+                        </button>
                     </div>
                 `;
             } else {
@@ -269,7 +316,7 @@
                             <div>
                                 <h3 class="text-xl font-bold mb-1">${site.name}</h3>
                                 <p class="text-gray-400 text-sm break-all">${site.url}</p>
-                                ${site.responseTime ? `<p class="text-green-400 text-xs mt-1">Response: ${site.responseTime}ms</p>` : ''}
+                                ${site.responseTime ? `<p class="text-green-400 text-xs mt-1">✓ Response: ${site.responseTime}ms</p>` : ''}
                             </div>
                             <button 
                                 class="px-6 py-3 rounded-lg font-bold bg-gradient-to-br from-white to-gray-500 text-black hover:scale-105 transition-transform flex items-center gap-2"
